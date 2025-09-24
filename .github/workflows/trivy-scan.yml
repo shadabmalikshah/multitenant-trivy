@@ -1,28 +1,50 @@
-name: Trivy Scan
+name: Trivy Scan (filesystem)
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   trivy-scan:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: movies
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@v0.33.1    # use a valid version
+      # --- optional: restore a Trivy DB cache (fast subsequent runs)
+      - name: Restore Trivy DB cache
+        uses: actions/cache@v4
         with:
-          scan-type: fs
-          scan-ref: .
-          format: table
-          output: trivy-report.txt
-        # you may want to allow failure but still produce report:
-        continue-on-error: true
+          # cache path relative to $GITHUB_WORKSPACE
+          path: .cache/trivy
+          # static key - change the suffix if you want manual invalidation
+          key: trivy-db-${{ runner.os }}-v1
+
+      - name: Install Trivy CLI (official install script)
+        run: |
+          # install a pinned Trivy CLI version (change v0.66.0 if you want another)
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.66.0
+          trivy --version
+
+      - name: Ensure Trivy DB is downloaded (populate cache)
+        run: |
+          # download DB to the workspace cache dir that we will persist with actions/cache
+          mkdir -p $GITHUB_WORKSPACE/.cache/trivy
+          /usr/local/bin/trivy --cache-dir $GITHUB_WORKSPACE/.cache/trivy --download-db-only
+
+      - name: Run Trivy filesystem scan (movies/)
+        run: |
+          set -e
+          cd movies
+          # produce a human table and also save as text; don't fail the job on vuln findings:
+          /usr/local/bin/trivy fs . \
+            --cache-dir $GITHUB_WORKSPACE/.cache/trivy \
+            --format table \
+            --output trivy-report.txt || true
 
       - name: Upload Trivy scan report
         uses: actions/upload-artifact@v4
