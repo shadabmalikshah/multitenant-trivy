@@ -52,22 +52,24 @@ jobs:
             --format json \
             --output trivy-reports/php-deps.json || true
 
-      # Convert JSON to HTML Table (PHP dependencies)
+      # Convert PHP JSON to human-readable HTML table
       - name: Convert PHP JSON to HTML Table
-        uses: Teebra/JSON-to-HTML-table@v2.0.0
-        with:
-          json-file: ./trivy-reports/php-deps.json
+        run: |
+          mkdir -p trivy-reports
+          echo "<html><body><h2>PHP Dependency Vulnerabilities</h2><table border='1'><tr><th>ID</th><th>Package</th><th>Severity</th><th>Installed Version</th><th>Fixed Version</th></tr>" > trivy-reports/php-deps.html
+          cat trivy-reports/php-deps.json | jq -r '.[] | select(.Vulnerabilities != null) | .Vulnerabilities[] | "<tr><td>\(.VulnerabilityID)</td><td>\(.PkgName)</td><td>\(.Severity)</td><td>\(.InstalledVersion)</td><td>\(.FixedVersion // "-")</td></tr>"' >> trivy-reports/php-deps.html
+          echo "</table></body></html>" >> trivy-reports/php-deps.html
 
       # Print PHP HTML to logs
       - name: Show PHP HTML Table
-        run: cat output.html
+        run: cat trivy-reports/php-deps.html
 
-      # Upload HTML Table artifact (PHP dependencies)
+      # Upload PHP HTML artifact
       - name: Upload PHP HTML Table to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: php-deps-html
-          path: output.html
+          path: trivy-reports/php-deps.html
 
       # Build Docker image
       - name: Build Docker image
@@ -83,22 +85,24 @@ jobs:
             --format json \
             --output trivy-reports/docker-image.json || true
 
-      # Convert Docker JSON to HTML Table
+      # Convert Docker JSON to human-readable HTML table
       - name: Convert Docker JSON to HTML Table
-        uses: Teebra/JSON-to-HTML-table@v2.0.0
-        with:
-          json-file: ./trivy-reports/docker-image.json
+        run: |
+          mkdir -p trivy-reports
+          echo "<html><body><h2>Docker Image Vulnerabilities</h2><table border='1'><tr><th>ID</th><th>Package</th><th>Severity</th><th>Installed Version</th><th>Fixed Version</th></tr>" > trivy-reports/docker-image.html
+          cat trivy-reports/docker-image.json | jq -r '.[] | select(.Vulnerabilities != null) | .Vulnerabilities[] | "<tr><td>\(.VulnerabilityID)</td><td>\(.PkgName)</td><td>\(.Severity)</td><td>\(.InstalledVersion)</td><td>\(.FixedVersion // "-")</td></tr>"' >> trivy-reports/docker-image.html
+          echo "</table></body></html>" >> trivy-reports/docker-image.html
 
       # Print Docker HTML to logs
       - name: Show Docker HTML Table
-        run: cat output.html
+        run: cat trivy-reports/docker-image.html
 
-      # Upload HTML Table artifact (Docker image)
+      # Upload Docker HTML artifact
       - name: Upload Docker HTML Table to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-html
-          path: output.html
+          path: trivy-reports/docker-image.html
 
       # Save Docker image as artifact
       - name: Save Docker image as artifact
