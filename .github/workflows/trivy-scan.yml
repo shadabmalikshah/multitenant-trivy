@@ -45,10 +45,15 @@ jobs:
             --ignore-unfixed \
             --format json \
             --output trivy-reports/php-deps.json || true
+          trivy fs . \
+            --security-checks vuln \
+            --ignore-unfixed \
+            --format template \
+            --template "@contrib/html.tpl" \
+            --output trivy-reports/php-deps.html || true
 
       - name: Build Docker image
-        run: |
-          docker build -t laravel-movies:latest .
+        run: docker build -t laravel-movies:latest .
 
       - name: Scan Docker image
         run: |
@@ -58,12 +63,18 @@ jobs:
             --ignore-unfixed \
             --format json \
             --output trivy-reports/docker-image.json || true
+          trivy image laravel-movies:latest \
+            --security-checks vuln \
+            --ignore-unfixed \
+            --format template \
+            --template "@contrib/html.tpl" \
+            --output trivy-reports/docker-image.html || true
 
-      - name: Upload Trivy JSON reports
+      - name: Upload Trivy JSON & HTML reports
         uses: actions/upload-artifact@v4
         with:
           name: trivy-reports
-          path: trivy-reports/*.json
+          path: trivy-reports/*
 
       - name: Save Docker image as artifact
         run: |
@@ -75,4 +86,3 @@ jobs:
         with:
           name: docker-image
           path: artifacts/laravel-movies.tar
-
