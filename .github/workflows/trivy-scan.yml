@@ -16,10 +16,10 @@ jobs:
 
       - name: Install Trivy CLI (official installer)
         run: |
-          # pin a Trivy CLI version you want (change v0.66.0 if you prefer)
+          # Pin a Trivy CLI version (change v0.66.0 if you prefer)
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
             | sh -s -- -b /usr/local/bin v0.66.0
-          /usr/local/bin/trivy --version
+          trivy --version
 
       - name: Restore Trivy DB cache
         uses: actions/cache@v4
@@ -32,14 +32,15 @@ jobs:
       - name: Run Trivy filesystem scan (movies/)
         run: |
           mkdir -p .cache/trivy
-          /usr/local/bin/trivy fs ./movies \
+          mkdir -p movies
+          trivy fs ./movies \
             --cache-dir $(pwd)/.cache/trivy \
             --format table \
             --output movies/trivy-report.txt || true
 
-      - name: Save Trivy DB cache (actions/cache will auto-save; this step keeps intent visible)
+      - name: Debug - list workspace files
         if: always()
-        run: echo "Trivy DB cached in .cache/trivy"
+        run: ls -R .
 
       - name: Upload Trivy scan report
         uses: actions/upload-artifact@v4
