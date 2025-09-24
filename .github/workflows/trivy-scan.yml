@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Set up PHP
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -21,14 +23,17 @@ jobs:
           extensions: mbstring, pdo, pdo_mysql, zip
           coverage: none
 
+      # Install Composer dependencies
       - name: Install Composer dependencies
         run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
+      # Install Trivy CLI
       - name: Install Trivy CLI
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.66.0
           trivy --version
 
+      # Restore Trivy DB cache
       - name: Restore Trivy DB cache
         uses: actions/cache@v4
         with:
@@ -37,48 +42,60 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      - name: Install Node.js (for trivy-html-reporter)
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Install trivy-html-reporter
-        run: npm install -g trivy-html-reporter
-
-      - name: Scan PHP dependencies and generate reports
+      # Scan PHP dependencies - JSON & HTML
+      - name: Scan PHP dependencies (composer.lock)
         run: |
           mkdir -p trivy-reports
+          # JSON report
           trivy fs . \
             --security-checks vuln \
             --ignore-unfixed \
             --format json \
             --output trivy-reports/php-deps.json || true
-          trivy-html-reporter -i trivy-reports/php-deps.json -o trivy-reports/php-deps.html
+          # HTML report
+          trivy fs . \
+            --security-checks vuln \
+            --ignore-unfixed \
+            --format template \
+            --template "@contrib/html.tpl" \
+            --output trivy-reports/php-deps.html || true
 
+      # Build Docker image
       - name: Build Docker image
         run: docker build -t laravel-movies:latest .
 
-      - name: Scan Docker image and generate reports
+      # Scan Docker image - JSON & HTML
+      - name: Scan Docker image
         run: |
           mkdir -p trivy-reports
+          # JSON report
           trivy image laravel-movies:latest \
             --security-checks vuln \
             --ignore-unfixed \
             --format json \
             --output trivy-reports/docker-image.json || true
-          trivy-html-reporter -i trivy-reports/docker-image.json -o trivy-reports/docker-image.html
+          # HTML report
+          trivy image laravel-movies:latest \
+            --security-checks vuln \
+            --ignore-unfixed \
+            --format template \
+            --template "@contrib/html.tpl" \
+            --output trivy-reports/docker-image.html || true
 
-      - name: Upload Trivy JSON & HTML reports
+      # Upload Trivy reports (JSON + HTML)
+      - name: Upload Trivy reports
         uses: actions/upload-artifact@v4
         with:
           name: trivy-reports
           path: trivy-reports/*
 
+      # Save Docker image as artifact
       - name: Save Docker image as artifact
         run: |
           mkdir -p artifacts
           docker save laravel-movies:latest -o artifacts/laravel-movies.tar
 
+      # Upload Docker image artifact
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
