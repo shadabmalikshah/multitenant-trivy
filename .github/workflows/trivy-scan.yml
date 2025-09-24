@@ -1,36 +1,32 @@
-name: Trivy Scan
+name: Trivy Scan (action - filesystem)
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   trivy-scan:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: movies
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+      - name: Trivy filesystem scan (action)
+        uses: aquasecurity/trivy-action@v0.20.0
         with:
-          trivy-version: latest
-
-      - name: Cache Trivy vulnerability DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/trivy
-          key: ${{ runner.os }}-trivy-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-trivy-
-
-      - name: Run Trivy filesystem scan
-        run: |
-          trivy fs . \
-            --format table \
-            --output trivy-report.txt || true
+          # IMPORTANT: tell the action to do a filesystem scan and where to scan
+          scan-type: fs
+          scan-ref: ./movies          # path to scan (relative to repo root)
+          format: table
+          output: movies/trivy-report.txt
+          cache-dir: /github/workspace/.cache/trivy
+          # severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL    # optional
+          # ignore-unfixed: true                          # optional
+        # ensure report uploads even if vulnerabilities are found:
+        continue-on-error: true
 
       - name: Upload Trivy scan report
         uses: actions/upload-artifact@v4
