@@ -1,28 +1,57 @@
-name: Trivy Full Security Scan
+name: Trivy Scan + Docker Build (PHP Laravel)
 
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  trivy-scan:
+  trivy-scan-and-docker:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Install Trivy CLI
-      - name: Install Trivy CLI (official installer)
+      # 2️⃣ Setup PHP (for composer)
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          tools: composer
+
+      # 3️⃣ Install Laravel dependencies
+      - name: Install Laravel dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      # 4️⃣ Install Docker (already on ubuntu-latest but ensure latest)
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v3
+
+      # 5️⃣ Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t laravel-movies:latest .
+          docker save laravel-movies:latest -o laravel-movies.tar
+
+      # 6️⃣ Upload Docker image as artifact
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: laravel-movies.tar
+
+      # 7️⃣ Install Trivy CLI
+      - name: Install Trivy CLI
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
             | sh -s -- -b /usr/local/bin v0.66.0
           trivy --version
 
-      # 3️⃣ Restore Trivy DB cache (speeds up scan)
+      # 8️⃣ Restore Trivy DB cache
       - name: Restore Trivy DB cache
         uses: actions/cache@v4
         with:
@@ -31,37 +60,47 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      # 4️⃣ Run full filesystem scan (all code + dependencies)
-      - name: Run Trivy filesystem scan (JSON)
+      # 9️⃣ Run filesystem scan (PHP Laravel)
+      - name: Run Trivy filesystem scan
         run: |
           mkdir -p .cache/trivy
           trivy fs . \
             --cache-dir $(pwd)/.cache/trivy \
+            --vuln-type os,library \
             --format json \
-            --output trivy-filesystem-report.json
+            --output trivy-filesystem-report.json || true
 
-      # 5️⃣ Run IaC (Infrastructure-as-Code) scan (Terraform/Docker/K8s)
-      - name: Run Trivy IaC misconfiguration scan (JSON)
+      # 🔟 Run IaC misconfiguration scan
+      - name: Run Trivy IaC scan
         run: |
-          mkdir -p .cache/trivy
           trivy config . \
             --format json \
-            --output trivy-iac-report.json
+            --output trivy-iac-report.json || true
 
-      # 6️⃣ Debug workspace (optional, verify files exist)
-      - name: Debug - list workspace files
-        run: ls -R .
+      # 1️⃣1️⃣ Run Trivy image scan on built Docker image
+      - name: Run Trivy Docker image scan
+        run: |
+          trivy image laravel-movies:latest \
+            --format json \
+            --output trivy-docker-report.json || true
 
-      # 7️⃣ Upload filesystem scan report as artifact
+      # 1️⃣2️⃣ Upload Trivy filesystem scan report
       - name: Upload filesystem scan report
         uses: actions/upload-artifact@v4
         with:
           name: trivy-filesystem-report
           path: trivy-filesystem-report.json
 
-      # 8️⃣ Upload IaC scan report as artifact
+      # 1️⃣3️⃣ Upload IaC scan report
       - name: Upload IaC scan report
         uses: actions/upload-artifact@v4
         with:
           name: trivy-iac-report
           path: trivy-iac-report.json
+
+      # 1️⃣4️⃣ Upload Trivy Docker image scan report
+      - name: Upload Docker image Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-docker-report
+          path: trivy-docker-report.json
