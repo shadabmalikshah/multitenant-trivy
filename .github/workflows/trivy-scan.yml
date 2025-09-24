@@ -1,4 +1,4 @@
-name: Trivy Scan (action - filesystem)
+name: Trivy Scan (CLI)
 
 on:
   workflow_dispatch:
@@ -7,26 +7,39 @@ permissions:
   contents: read
 
 jobs:
-  trivy-scan:
+  trivy-cli-scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trivy filesystem scan (action)
-        uses: aquasecurity/trivy-action@v0.20.0
+      - name: Install Trivy CLI (official installer)
+        run: |
+          # pin a Trivy CLI version you want (change v0.66.0 if you prefer)
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.66.0
+          /usr/local/bin/trivy --version
+
+      - name: Restore Trivy DB cache
+        uses: actions/cache@v4
         with:
-          # IMPORTANT: tell the action to do a filesystem scan and where to scan
-          scan-type: fs
-          scan-ref: ./movies          # path to scan (relative to repo root)
-          format: table
-          output: movies/trivy-report.txt
-          cache-dir: /github/workspace/.cache/trivy
-          # severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL    # optional
-          # ignore-unfixed: true                          # optional
-        # ensure report uploads even if vulnerabilities are found:
-        continue-on-error: true
+          path: .cache/trivy
+          key: trivy-db-${{ runner.os }}-v1
+          restore-keys: |
+            trivy-db-${{ runner.os }}-
+
+      - name: Run Trivy filesystem scan (movies/)
+        run: |
+          mkdir -p .cache/trivy
+          /usr/local/bin/trivy fs ./movies \
+            --cache-dir $(pwd)/.cache/trivy \
+            --format table \
+            --output movies/trivy-report.txt || true
+
+      - name: Save Trivy DB cache (actions/cache will auto-save; this step keeps intent visible)
+        if: always()
+        run: echo "Trivy DB cached in .cache/trivy"
 
       - name: Upload Trivy scan report
         uses: actions/upload-artifact@v4
