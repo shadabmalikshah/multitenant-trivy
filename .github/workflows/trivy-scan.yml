@@ -37,7 +37,15 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      - name: Scan PHP dependencies (composer.lock)
+      - name: Install Node.js (for trivy-html-reporter)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install trivy-html-reporter
+        run: npm install -g trivy-html-reporter
+
+      - name: Scan PHP dependencies and generate reports
         run: |
           mkdir -p trivy-reports
           trivy fs . \
@@ -45,17 +53,12 @@ jobs:
             --ignore-unfixed \
             --format json \
             --output trivy-reports/php-deps.json || true
-          trivy fs . \
-            --security-checks vuln \
-            --ignore-unfixed \
-            --format template \
-            --template "@contrib/html.tpl" \
-            --output trivy-reports/php-deps.html || true
+          trivy-html-reporter -i trivy-reports/php-deps.json -o trivy-reports/php-deps.html
 
       - name: Build Docker image
         run: docker build -t laravel-movies:latest .
 
-      - name: Scan Docker image
+      - name: Scan Docker image and generate reports
         run: |
           mkdir -p trivy-reports
           trivy image laravel-movies:latest \
@@ -63,12 +66,7 @@ jobs:
             --ignore-unfixed \
             --format json \
             --output trivy-reports/docker-image.json || true
-          trivy image laravel-movies:latest \
-            --security-checks vuln \
-            --ignore-unfixed \
-            --format template \
-            --template "@contrib/html.tpl" \
-            --output trivy-reports/docker-image.html || true
+          trivy-html-reporter -i trivy-reports/docker-image.json -o trivy-reports/docker-image.html
 
       - name: Upload Trivy JSON & HTML reports
         uses: actions/upload-artifact@v4
