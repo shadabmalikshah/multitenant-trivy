@@ -42,52 +42,55 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      # Scan PHP dependencies - JSON & HTML
+      # Scan PHP dependencies - JSON
       - name: Scan PHP dependencies (composer.lock)
         run: |
           mkdir -p trivy-reports
-          # JSON report
           trivy fs . \
             --security-checks vuln \
             --ignore-unfixed \
             --format json \
             --output trivy-reports/php-deps.json || true
-          # HTML report
-          trivy fs . \
-            --security-checks vuln \
-            --ignore-unfixed \
-            --format template \
-            --template "@contrib/html.tpl" \
-            --output trivy-reports/php-deps.html || true
+
+      # Convert JSON to HTML Table (for PHP dependencies)
+      - name: Convert PHP JSON to HTML Table
+        uses: Teebra/JSON-to-HTML-table@v2.0.0
+        with:
+          json-file: ./trivy-reports/php-deps.json
+
+      # Upload HTML Table artifact (PHP dependencies)
+      - name: Upload PHP HTML Table to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: php-deps-html
+          path: output.html
 
       # Build Docker image
       - name: Build Docker image
         run: docker build -t laravel-movies:latest .
 
-      # Scan Docker image - JSON & HTML
+      # Scan Docker image - JSON
       - name: Scan Docker image
         run: |
           mkdir -p trivy-reports
-          # JSON report
           trivy image laravel-movies:latest \
             --security-checks vuln \
             --ignore-unfixed \
             --format json \
             --output trivy-reports/docker-image.json || true
-          # HTML report
-          trivy image laravel-movies:latest \
-            --security-checks vuln \
-            --ignore-unfixed \
-            --format template \
-            --template "@contrib/html.tpl" \
-            --output trivy-reports/docker-image.html || true
 
-      # Upload Trivy reports (JSON + HTML)
-      - name: Upload Trivy reports
-        uses: actions/upload-artifact@v4
+      # Convert Docker JSON to HTML Table
+      - name: Convert Docker JSON to HTML Table
+        uses: Teebra/JSON-to-HTML-table@v2.0.0
         with:
-          name: trivy-reports
-          path: trivy-reports/*
+          json-file: ./trivy-reports/docker-image.json
+
+      # Upload HTML Table artifact (Docker image)
+      - name: Upload Docker HTML Table to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image-html
+          path: output.html
 
       # Save Docker image as artifact
       - name: Save Docker image as artifact
