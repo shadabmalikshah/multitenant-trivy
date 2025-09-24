@@ -1,0 +1,32 @@
+name: Trivy Scan
+
+on:
+  push:
+    paths:
+      - '**/movies/**'
+  pull_request:
+    paths:
+      - '**/movies/**'
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movies
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@v0.16.2
+
+      - name: Run Trivy filesystem scan
+        run: |
+          trivy fs . --format table --output trivy-report.txt || true
+
+      - name: Upload Trivy scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: movies/trivy-report.txt
