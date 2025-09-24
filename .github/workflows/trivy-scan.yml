@@ -69,7 +69,10 @@ jobs:
         run: |
           mkdir -p artifacts
           docker save laravel-movies:latest -o artifacts/laravel-movies.tar
-          uses: actions/upload-artifact@v4
-          with:
-            name: docker-image
-            path: artifacts/laravel-movies.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: artifacts/laravel-movies.tar
+
