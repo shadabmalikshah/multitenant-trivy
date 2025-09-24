@@ -58,6 +58,10 @@ jobs:
         with:
           json-file: ./trivy-reports/php-deps.json
 
+      # Print PHP HTML to logs
+      - name: Show PHP HTML Table
+        run: cat output.html
+
       # Upload HTML Table artifact (PHP dependencies)
       - name: Upload PHP HTML Table to Artifacts
         uses: actions/upload-artifact@v4
@@ -84,6 +88,10 @@ jobs:
         uses: Teebra/JSON-to-HTML-table@v2.0.0
         with:
           json-file: ./trivy-reports/docker-image.json
+
+      # Print Docker HTML to logs
+      - name: Show Docker HTML Table
+        run: cat output.html
 
       # Upload HTML Table artifact (Docker image)
       - name: Upload Docker HTML Table to Artifacts
