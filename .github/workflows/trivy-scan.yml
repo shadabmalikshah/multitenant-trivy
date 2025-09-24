@@ -57,7 +57,12 @@ jobs:
         run: |
           mkdir -p trivy-reports
           echo "<html><body><h2>PHP Dependency Vulnerabilities</h2><table border='1'><tr><th>ID</th><th>Package</th><th>Severity</th><th>Installed Version</th><th>Fixed Version</th></tr>" > trivy-reports/php-deps.html
-          cat trivy-reports/php-deps.json | jq -r '.[] | select(.Vulnerabilities != null) | .Vulnerabilities[] | "<tr><td>\(.VulnerabilityID)</td><td>\(.PkgName)</td><td>\(.Severity)</td><td>\(.InstalledVersion)</td><td>\(.FixedVersion // "-")</td></tr>"' >> trivy-reports/php-deps.html
+          cat trivy-reports/php-deps.json | jq -r '
+            .[] 
+            | select(type == "object" and has("Vulnerabilities")) 
+            | .Vulnerabilities[] 
+            | "<tr><td>\(.VulnerabilityID)</td><td>\(.PkgName)</td><td>\(.Severity)</td><td>\(.InstalledVersion)</td><td>\(.FixedVersion // "-")</td></tr>"
+          ' >> trivy-reports/php-deps.html
           echo "</table></body></html>" >> trivy-reports/php-deps.html
 
       # Print PHP HTML to logs
@@ -90,7 +95,12 @@ jobs:
         run: |
           mkdir -p trivy-reports
           echo "<html><body><h2>Docker Image Vulnerabilities</h2><table border='1'><tr><th>ID</th><th>Package</th><th>Severity</th><th>Installed Version</th><th>Fixed Version</th></tr>" > trivy-reports/docker-image.html
-          cat trivy-reports/docker-image.json | jq -r '.[] | select(.Vulnerabilities != null) | .Vulnerabilities[] | "<tr><td>\(.VulnerabilityID)</td><td>\(.PkgName)</td><td>\(.Severity)</td><td>\(.InstalledVersion)</td><td>\(.FixedVersion // "-")</td></tr>"' >> trivy-reports/docker-image.html
+          cat trivy-reports/docker-image.json | jq -r '
+            .[] 
+            | select(type == "object" and has("Vulnerabilities")) 
+            | .Vulnerabilities[] 
+            | "<tr><td>\(.VulnerabilityID)</td><td>\(.PkgName)</td><td>\(.Severity)</td><td>\(.InstalledVersion)</td><td>\(.FixedVersion // "-")</td></tr>"
+          ' >> trivy-reports/docker-image.html
           echo "</table></body></html>" >> trivy-reports/docker-image.html
 
       # Print Docker HTML to logs
