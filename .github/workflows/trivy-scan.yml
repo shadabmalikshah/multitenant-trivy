@@ -29,21 +29,21 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      - name: Run Trivy filesystem scan (movies/)
+      - name: Run Trivy filesystem scan (movies/) in JSON format
         run: |
           mkdir -p .cache/trivy
           mkdir -p movies
           trivy fs ./movies \
             --cache-dir $(pwd)/.cache/trivy \
-            --format table \
-            --output movies/trivy-report.txt || true
+            --format json \
+            --output movies/trivy-report.json || true
 
       - name: Debug - list workspace files
         if: always()
         run: ls -R .
 
-      - name: Upload Trivy scan report
+      - name: Upload Trivy scan report (JSON)
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report
-          path: movies/trivy-report.txt
+          path: movies/trivy-report.json
